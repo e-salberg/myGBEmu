@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <emu.h>
+#include <cpu.h>
+#include <cartridge.h>
 
 static emu_context ctx;
 
@@ -17,10 +19,17 @@ int emu_run(int argc, char**argv)
 {
     if (argc < 2) 
     {
-        printf("Usage: emu <rom_file>\n");
+        printf("Error: Need to provide a rom file\n");
         return -1;
     }
 
+    if (!load_cartridge(argv[1]))
+    {
+        printf("Failed to load ROM file: %s\n", argv[1]);
+    }
+
+    printf("Cartridge loaded..\n");
+    
     cpu_init();
 
     ctx.running = true;

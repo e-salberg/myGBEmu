@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.csv": "csv (semicolon)",
+        "cartridge.h": "c",
+        "utility": "c"
+    }
+}
