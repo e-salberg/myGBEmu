@@ -2,6 +2,8 @@
     "files.associations": {
         "*.csv": "csv (semicolon)",
         "cartridge.h": "c",
-        "utility": "c"
+        "utility": "c",
+        "addressbus.h": "c",
+        "cpu.h": "c"
     }
 }

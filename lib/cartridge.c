@@ -326,6 +326,7 @@ bool load_cartridge(char *cartridge)
     fread(ctx.rom_data, ctx.rom_size, 1, fp);
     fclose(fp);
 
+    // 0x100 is the start of the header information
     ctx.header = (cartridge_header *)(ctx.rom_data + 0x100);
     ctx.header->title[15] = 0;
 
@@ -353,4 +354,14 @@ bool load_cartridge(char *cartridge)
     printf("\t Checksum      : %2.2X (%s)\n", ctx.header->header_checksum, (checksum & 0xFF) ? "PASSED" : "FAILED");
 
     return true;
+}
+
+uint8_t read_cartridge(uint16_t address)
+{
+    return ctx.rom_data[address];
+}
+
+void write_cartridge(uint16_t address, uint8_t value)
+{
+    return;
 }

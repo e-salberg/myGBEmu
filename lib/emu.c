@@ -53,3 +53,8 @@ int emu_run(int argc, char**argv)
         ctx.ticks++;
     }
 }
+
+void emu_cycles(int cpu_cycles)
+{
+    // TODO...
+}
