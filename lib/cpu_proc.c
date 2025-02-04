@@ -1,5 +1,6 @@
 #include <cpu.h>
 #include <emu.h>
+#include <memorymap.h>
 
 // processes CPU instructions...
 
@@ -44,6 +45,11 @@ void cpu_set_flags(cpu_context *ctx, char z, char n, char h, char c)
     }
 }
 
+static bool is_16_bit(reg_type rt)
+{
+    return rt >= RT_AF;
+}
+
 static void proc_none(cpu_context *ctx)
 {
     printf("INVALID INSTRUCTION!\n");
@@ -61,8 +67,45 @@ static void proc_di(cpu_context *ctx)
 }
 
 static void proc_ld(cpu_context *ctx)
-{
-    // todo
+{   
+    if (ctx->destination_is_memory)
+    {
+        // LD (BC), A 
+        if (is_16_bit(ctx->current_instruction->reg_2))
+        {
+            write16_address_bus(ctx->memory_destination, ctx->fetched_data);
+            emu_cycles(2);
+        } 
+        else 
+        {
+            write_address_bus(ctx->memory_destination, ctx->fetched_data);
+            emu_cycles(1);
+        }
+        return;
+    }
+
+    if (ctx->current_instruction->mode = AM_HL_SPR)
+    {
+        // LD HL, SP+e8
+        /*
+        This way looks more in line with the docs but not exactly sure if it works
+        uint8_t carry_bit = (cpu_read_reg(ctx->current_instruction->reg_2) & 0xFF) + 
+            (ctx->fetched_data & 0xFF);
+        //for h flag docs say carry_bit[3] so do I shift over 3 times? i think 4 will match below
+        uint8_t h = CHECK_BIT(carry_bit, 4); 3 or 4?
+        // for c flag docs say carry_bit[7]
+        uint8_t c = CHECK_BIT(carry_bit, 8); 7 or 8?
+        */
+        uint8_t h = (cpu_read_reg(ctx->current_instruction->reg_2) & 0xF) + 
+            (ctx->fetched_data & 0xF) >= 0x10;
+        uint8_t c = (cpu_read_reg(ctx->current_instruction->reg_2) & 0xFF) + 
+            (ctx->fetched_data & 0xFF) >= 0x100;
+        cpu_set_flags(ctx, 0, 0, h, c);
+        cpu_set_reg(ctx->current_instruction->reg_1, 
+            cpu_read_reg(ctx->current_instruction->reg_2) + (int8_t)ctx->fetched_data);
+    }
+
+    cpu_set_reg(ctx->current_instruction->reg_1, ctx->fetched_data);
 }
 
 static void proc_xor(cpu_context *ctx)

@@ -1,2 +1,9 @@
 # myGBEmu
-my GameBoy Emulator
+Following along with Low Level Devel youtube videos - https://www.youtube.com/watch?v=e87qKixKFME&list=PLVxiWMqQvhg_yk4qy2cSC3457wZJga_e5
+
+his repo - https://github.com/rockytriton/LLD_gbemu/tree/main
+
+Also using these useful docs:
+- https://gbdev.io/pandocs/
+- https://gbdev.io/gb-opcodes/optables/
+- https://gekkio.fi/files/gb-docs/gbctr.pdf

@@ -35,15 +35,109 @@ static void fetch_data()
         case AM_R:
             ctx.fetched_data = cpu_read_reg(ctx.current_instruction->reg_1);
             return;
-        case AM_R_D8:
+        case AM_R_R:
+            ctx.fetched_data = cpu_read_reg(ctx.current_instruction->reg_2);
+            return;
+        case AM_R_N8:
             ctx.fetched_data = read_address_bus(ctx.regs.pc);
             emu_cycles(1);
             ctx.regs.pc++;
             return;
-        case AM_D16:
+        case AM_R_N16:
+        case AM_N16:
             ctx.fetched_data = read16_address_bus(ctx.regs.pc);
             emu_cycles(2);
             ctx.regs.pc += 2;
+            return;
+        case AM_MR_R:
+            ctx.fetched_data = cpu_read_reg(ctx.current_instruction->reg_2);
+            ctx.memory_destination = cpu_read_reg(ctx.current_instruction->reg_1);
+            ctx.destination_is_memory = true;
+            if (ctx.current_instruction->reg_1 == RT_C)
+            {
+                // special case for LDH [C], A
+                ctx.memory_destination |= 0xFF00;
+            }
+            return;
+        case AM_R_MR:
+            uint16_t addr = cpu_read_reg(ctx.current_instruction->reg_2);
+            if (ctx.current_instruction->reg_2 == RT_C)
+            {
+                // special case for LDH A, [C] 
+                addr |= 0xFF00;
+            }
+            ctx.fetched_data = read_address_bus(addr);
+            emu_cycles(1);
+            return;
+        case AM_R_HLI:
+            ctx.fetched_data = read_address_bus(cpu_read_reg(ctx.current_instruction->reg_2));
+            emu_cycles(1);
+            cpu_set_reg(RT_HL, cpu_read_reg(RT_HL) + 1);
+            return;
+        case AM_R_HLD:
+            ctx.fetched_data = read_address_bus(cpu_read_reg(ctx.current_instruction->reg_2));
+            emu_cycles(1);
+            cpu_set_reg(RT_HL, cpu_read_reg(RT_HL) - 1);
+            return;
+        case AM_HLI_R:
+            ctx.fetched_data = cpu_read_reg(ctx.current_instruction->reg_2);
+            ctx.memory_destination = ctx.current_instruction->reg_1;
+            ctx.destination_is_memory = true;
+            cpu_set_reg(RT_HL, cpu_read_reg(RT_HL) + 1);
+            return;
+        case AM_HLD_R:
+            ctx.fetched_data = cpu_read_reg(ctx.current_instruction->reg_2);
+            ctx.memory_destination = ctx.current_instruction->reg_1;
+            ctx.destination_is_memory = true;
+            cpu_set_reg(RT_HL, cpu_read_reg(RT_HL) - 1);
+            return;
+        case AM_N8:
+        case AM_R_A8:
+            ctx.fetched_data = read_address_bus(ctx.regs.pc);
+            emu_cycles(1);
+            ctx.regs.pc++;
+            return;
+        case AM_A8_R:
+            // don't need to fetch the data from the reg 2???
+            ctx.fetched_data = cpu_read_reg(ctx.current_instruction->reg_2);
+            ctx.memory_destination  = read_address_bus(ctx.regs.pc) | 0xFF00;
+            ctx.destination_is_memory = true;
+            emu_cycles(1);
+            ctx.regs.pc++;
+            return;
+        case AM_HL_SPR:
+            // special case for op:0xE8 -  LD HL, SP+e8
+            ctx.fetched_data = read_address_bus(ctx.regs.pc);
+            emu_cycles(1);
+            ctx.regs.pc++;
+            return;
+        case AM_N16_R:
+        case AM_A16_R:
+            ctx.fetched_data = cpu_read_reg(ctx.current_instruction->reg_2);
+            emu_cycles(2);
+            ctx.regs.pc += 2;
+            ctx.memory_destination = read16_address_bus(ctx.regs.pc);
+            ctx.destination_is_memory = true;  
+            return;
+        case AM_R_A16:
+            uint16_t address = read16_address_bus(ctx.regs.pc);
+            emu_cycles(2);
+            ctx.regs.pc += 2;
+            ctx.fetched_data = read_address_bus(address);
+            emu_cycles(1);
+            return;
+        case AM_MR_N8:
+            ctx.fetched_data = read_address_bus(ctx.regs.pc);
+            emu_cycles(1);
+            ctx.regs.pc++;
+            ctx.memory_destination = cpu_read_reg(ctx.current_instruction->reg_1);
+            ctx.destination_is_memory = true;
+            return;
+        case AM_MR:
+            ctx.memory_destination = cpu_read_reg(ctx.current_instruction->reg_1);
+            ctx.destination_is_memory = true;
+            ctx.fetched_data = read_address_bus(ctx.current_instruction->reg_1);
+            emu_cycles(1);
             return;
         default:
             printf("Unknown Addressing Mode! %d (%02X)\n", ctx.current_instruction->mode, ctx.current_opcode);
