@@ -178,3 +178,8 @@ bool cpu_step()
     }
     return true;
 }
+
+cpu_registers *cpu_get_regs()
+{
+    
+}

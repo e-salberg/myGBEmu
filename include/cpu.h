@@ -31,6 +31,7 @@ typedef struct {
     uint8_t interrupt_enabled_register;
 } cpu_context;
 
+cpu_registers *cpu_get_regs();
 
 void cpu_init();
 bool cpu_step();

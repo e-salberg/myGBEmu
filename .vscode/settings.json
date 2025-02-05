@@ -4,6 +4,7 @@
         "cartridge.h": "c",
         "utility": "c",
         "addressbus.h": "c",
-        "cpu.h": "c"
+        "cpu.h": "c",
+        "stack.h": "c"
     }
 }

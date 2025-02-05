@@ -1,6 +1,7 @@
 #include <cpu.h>
 #include <emu.h>
 #include <memorymap.h>
+#include <stack.h>
 
 // processes CPU instructions...
 
@@ -73,14 +74,14 @@ static void proc_ld(cpu_context *ctx)
         // LD (BC), A 
         if (is_16_bit(ctx->current_instruction->reg_2))
         {
-            write16_address_bus(ctx->memory_destination, ctx->fetched_data);
-            emu_cycles(2);
+            emu_cycles(1);
+            write16_address_bus(ctx->memory_destination, ctx->fetched_data);  
         } 
         else 
         {
             write_address_bus(ctx->memory_destination, ctx->fetched_data);
-            emu_cycles(1);
         }
+        emu_cycles(1);
         return;
     }
 
@@ -138,6 +139,39 @@ static void proc_jp(cpu_context *ctx)
     }
 }
 
+static void proc_pop(cpu_context *ctx)
+{
+    uint16_t lo = stack_pop();
+    emu_cycles(1);
+    uint16_t hi = stack_pop();
+    emu_cycles(1);
+
+    uint16_t n = (hi << 8) | lo;
+    cpu_set_reg(ctx->current_instruction->reg_1, n);
+
+    // why is this the case? shouldn't POP AF completely replace the F register value?
+    // check https://gekkio.fi/files/gb-docs/gbctr.pdf page 44
+    /*if (ctx->current_instruction->reg_1 == RT_AF)
+    {
+        cpu_set_reg(ctx->current_instruction->reg_1, n & 0xFFF0);
+    }*/
+}
+
+static void proc_push(cpu_context *ctx)
+{
+    //uint16_t hi = (cpu_read_reg(ctx->current_instruction->reg_1) >> 8) & 0xFF;
+    uint8_t hi = (cpu_read_reg(ctx->current_instruction->reg_1) >> 8) & 0xFF;
+    emu_cycles(1);
+    stack_push(hi);
+
+    //uint16_t lo = cpu_read_reg(ctx->current_instruction->reg_1) & 0xFF;
+    uint8_t lo = cpu_read_reg(ctx->current_instruction->reg_1) & 0xFF;
+    emu_cycles(1);
+    stack_push(lo);
+
+    emu_cycles(1);
+}
+
 static IN_PROC processors[] = {
     [IN_NONE] = proc_none,
     [IN_NOP] = proc_nop,
@@ -146,6 +180,8 @@ static IN_PROC processors[] = {
     [IN_JP] = proc_jp,
     [IN_DI] = proc_di,
     [IN_XOR] = proc_xor,
+    [IN_POP] = proc_pop,
+    [IN_PUSH] = proc_push
 };
 
 IN_PROC inst_get_processor(instruction_type type)
