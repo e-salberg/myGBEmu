@@ -93,12 +93,12 @@ static void fetch_data()
             return;
         case AM_N8:
         case AM_R_A8:
-            ctx.fetched_data = read_address_bus(ctx.regs.pc);
+            //ctx.fetched_data = read_address_bus(ctx.regs.pc);
+            ctx.fetched_data = read_address_bus(ctx.regs.pc) | 0xFF00;
             emu_cycles(1);
             ctx.regs.pc++;
             return;
         case AM_A8_R:
-            // don't need to fetch the data from the reg 2???
             ctx.fetched_data = cpu_read_reg(ctx.current_instruction->reg_2);
             ctx.memory_destination  = read_address_bus(ctx.regs.pc) | 0xFF00;
             ctx.destination_is_memory = true;
@@ -163,9 +163,10 @@ bool cpu_step()
         fetch_instruction();
         fetch_data();
 
-        printf("%04X: %-7s (%02X %02X %02X) A: %02X B: %02X C: %02X\n", 
+       printf("%04X: %-7s (%02X %02X %02X) A: %02X BC: %02X%02X DE: %02X%02X HL: %02X%02X\n", 
             pc, get_instruction_name(ctx.current_instruction->type), ctx.current_opcode,
-            read_address_bus(pc + 1), read_address_bus(pc + 2), ctx.regs.a, ctx.regs.b, ctx.regs.c);
+            read_address_bus(pc + 1), read_address_bus(pc + 2), ctx.regs.a, ctx.regs.b, ctx.regs.c,
+            ctx.regs.d, ctx.regs.e, ctx.regs.h, ctx.regs.l);
 
         if (ctx.current_instruction == NULL)
         {

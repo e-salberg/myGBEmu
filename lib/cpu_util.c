@@ -96,3 +96,13 @@ void cpu_set_reg(reg_type rt, uint16_t val)
             break;
     }
 }
+
+uint8_t cpu_get_ie_register()
+{
+    return ctx.interrupt_enabled_register;
+}
+
+void cpu_set_ie_register(uint8_t val)
+{
+    ctx.interrupt_enabled_register = val;
+}

@@ -28,13 +28,18 @@ typedef struct {
     bool halted;
     bool stepping;
     bool master_interrupt_enabled;
+    uint8_t interrupt_enabled_register;
 } cpu_context;
 
 
 void cpu_init();
 bool cpu_step();
+
 uint16_t cpu_read_reg(reg_type rt);
 void cpu_set_reg(reg_type rt, uint16_t val);
+
+uint8_t cpu_get_ie_register();
+void cpu_set_ie_register(uint8_t val);
 
 typedef void (*IN_PROC)(cpu_context *);
 IN_PROC inst_get_processor(instruction_type type);

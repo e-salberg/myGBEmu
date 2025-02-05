@@ -108,6 +108,21 @@ static void proc_ld(cpu_context *ctx)
     cpu_set_reg(ctx->current_instruction->reg_1, ctx->fetched_data);
 }
 
+static void proc_ldh(cpu_context *ctx)
+{
+    // LDH commands always use register A, either in pos 1 or pos 2
+    if (ctx->current_instruction->reg_1 == RT_A)
+    {
+        // cpu_set_reg(ctx->current_instruction->reg_1, read_address_bus(0xFF00 | ctx->fetched_data));
+        cpu_set_reg(ctx->current_instruction->reg_1, read_address_bus(ctx->fetched_data));
+    }
+    else 
+    {
+        write_address_bus(ctx->memory_destination, ctx->regs.a);
+    }
+    emu_cycles(1);
+}
+
 static void proc_xor(cpu_context *ctx)
 {
     ctx->regs.a ^= ctx->fetched_data & 0xFF;
@@ -124,9 +139,10 @@ static void proc_jp(cpu_context *ctx)
 }
 
 static IN_PROC processors[] = {
-    [IN_NONE] = proc_none, //IN_NONE
+    [IN_NONE] = proc_none,
     [IN_NOP] = proc_nop,
     [IN_LD] = proc_ld,
+    [IN_LDH] = proc_ldh,
     [IN_JP] = proc_jp,
     [IN_DI] = proc_di,
     [IN_XOR] = proc_xor,
