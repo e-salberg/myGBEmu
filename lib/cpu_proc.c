@@ -51,6 +51,23 @@ static bool is_16_bit(reg_type rt)
     return rt >= RT_AF;
 }
 
+static void goto_addr(cpu_context *ctx, uint16_t addr, bool pushpc)
+{
+    if (!check_condition(ctx))
+    {
+        return;
+    }
+
+    if (pushpc)
+    {
+        emu_cycles(2);
+        stack_push16(ctx->regs.pc);
+    }
+    ctx->regs.pc = addr;
+    emu_cycles(1);
+}
+
+
 static void proc_none(cpu_context *ctx)
 {
     printf("INVALID INSTRUCTION!\n");
@@ -60,6 +77,55 @@ static void proc_none(cpu_context *ctx)
 static void proc_nop(cpu_context *ctx)
 {
     // nop doesn't do anything
+}
+
+static void proc_jp(cpu_context *ctx)
+{
+    goto_addr(ctx, ctx->fetched_data, false);
+}
+
+static void proc_jr(cpu_context *ctx)
+{
+    int8_t rel = (int8_t)(ctx->fetched_data & 0xFF);
+    uint16_t addr = ctx->regs.pc + rel;
+    goto_addr(ctx, addr, false);
+}
+
+static void proc_call(cpu_context *ctx)
+{
+    goto_addr(ctx, ctx->fetched_data, true);
+}
+
+static void proc_rst(cpu_context *ctx)
+{
+    goto_addr(ctx, ctx->current_instruction->param, true);
+}
+
+static void proc_ret(cpu_context *ctx)
+{
+    if (ctx->current_instruction->cond != CT_NONE)
+    {
+        // see page 121 of https://gekkio.fi/files/gb-docs/gbctr.pdf
+        emu_cycles(1);
+    }
+
+    if (check_condition(ctx))
+    {
+        // 2 stack_pop instead of 1 stack_pop16 for cycle accuracy
+        uint16_t lo = stack_pop();
+        emu_cycles(1);
+        uint16_t hi = stack_pop();
+        emu_cycles(1);
+        uint16_t n = (hi << 8) | lo;
+        ctx->regs.pc = n;
+        emu_cycles(1);
+    }
+}
+
+static void proc_reti(cpu_context *ctx)
+{
+    ctx->master_interrupt_enabled = true;
+    proc_ret(ctx);
 }
 
 static void proc_di(cpu_context *ctx)
@@ -130,15 +196,6 @@ static void proc_xor(cpu_context *ctx)
     cpu_set_flags(ctx, ctx->regs.a == 0, 0, 0, 0);
 }
 
-static void proc_jp(cpu_context *ctx)
-{
-    if (check_condition(ctx))
-    {
-        ctx->regs.pc = ctx->fetched_data;
-        emu_cycles(1);
-    }
-}
-
 static void proc_pop(cpu_context *ctx)
 {
     uint16_t lo = stack_pop();
@@ -178,6 +235,11 @@ static IN_PROC processors[] = {
     [IN_LD] = proc_ld,
     [IN_LDH] = proc_ldh,
     [IN_JP] = proc_jp,
+    [IN_JR] = proc_jr,
+    [IN_CALL] = proc_call,
+    [IN_RST] = proc_rst,
+    [IN_RET] = proc_ret,
+    [IN_RETI] = proc_reti,
     [IN_DI] = proc_di,
     [IN_XOR] = proc_xor,
     [IN_POP] = proc_pop,

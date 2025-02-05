@@ -181,5 +181,5 @@ bool cpu_step()
 
 cpu_registers *cpu_get_regs()
 {
-    
+    return &ctx.regs;
 }

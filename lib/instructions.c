@@ -10,7 +10,7 @@ instruction instructions[0x100] = {
     [0x06] = { IN_LD, AM_R_N8, RT_B },
     [0x08] = { IN_LD, AM_A16_R, RT_NONE, RT_SP },
     [0x0A] = { IN_LD, AM_R_MR, RT_A, RT_BC },
-    [0x0B] = { IN_DEC, AM_R, RT_BC},
+    [0x0B] = { IN_DEC, AM_R, RT_BC },
     [0x0D] = { IN_DEC, AM_R, RT_C},
     [0x0E] = { IN_LD, AM_R_N8, RT_C },
 
@@ -19,29 +19,34 @@ instruction instructions[0x100] = {
     [0x12] = { IN_LD, AM_MR_R, RT_DE, RT_A},
     [0x15] = { IN_DEC, AM_R, RT_D },
     [0x16] = { IN_LD, AM_R_N8, RT_D },
+    [0x18] = { IN_JR, AM_N8 },
     [0x1A] = { IN_LD, AM_R_MR, RT_A, RT_DE },
-    [0x1B] = { IN_DEC, AM_R, RT_DE},
-    [0x1D] = { IN_DEC, AM_R, RT_E},
+    [0x1B] = { IN_DEC, AM_R, RT_DE },
+    [0x1D] = { IN_DEC, AM_R, RT_E },
     [0x1E] = { IN_LD, AM_R_N8, RT_E },
 
     // 0x2X
+    [0x20] = { IN_JR, AM_N8, RT_NONE, RT_NONE, CT_NZ },
     [0x21] = { IN_LD, AM_R_N16, RT_HL },
     [0x22] = { IN_LD, AM_HLI_R, RT_HL, RT_A },
     [0x25] = { IN_DEC, AM_R, RT_H },
     [0x26] = { IN_LD, AM_R_N8, RT_H },
+    [0x28] = { IN_JR, AM_N8, RT_NONE, RT_NONE, CT_Z },
     [0x2A] = { IN_LD, AM_R_HLI, RT_A, RT_HL },
-    [0x2B] = { IN_DEC, AM_R, RT_HL},
-    [0x2D] = { IN_DEC, AM_R, RT_L},
+    [0x2B] = { IN_DEC, AM_R, RT_HL },
+    [0x2D] = { IN_DEC, AM_R, RT_L },
     [0x2E] = { IN_LD, AM_R_N8, RT_L },
     
     // 0x3X
+    [0x30] = { IN_JR, AM_N8, RT_NONE, RT_NONE, CT_NC },
     [0x31] = { IN_LD, AM_R_N16, RT_SP },
     [0x32] = { IN_LD, AM_HLD_R, RT_HL, RT_A },
     [0x35] = { IN_DEC, AM_R, RT_HL },
     [0x36] = { IN_LD, AM_MR_N8, RT_HL },
+    [0x38] = { IN_JR, AM_N8, RT_NONE, RT_NONE, CT_C },
     [0x3A] = { IN_LD, AM_R_HLD, RT_A, RT_HL },
-    [0x3B] = { IN_DEC, AM_R, RT_SP},
-    [0x3D] = { IN_DEC, AM_R, RT_A},
+    [0x3B] = { IN_DEC, AM_R, RT_SP },
+    [0x3D] = { IN_DEC, AM_R, RT_A },
     [0x3E] = { IN_LD, AM_R_N8, RT_A },
 
     // 0x4X
@@ -119,20 +124,42 @@ instruction instructions[0x100] = {
     [0xAF] = { IN_XOR, AM_R, RT_A },
 
     // 0xCX
+    [0xC0] = { IN_RET, AM_IMP, RT_NONE, RT_NONE, CT_NZ },
     [0xC1] = { IN_POP, AM_R, RT_BC },
+    [0xC2] = { IN_JP, AM_N16, RT_NONE, RT_NONE, CT_NZ },
     [0xC3] = { IN_JP, AM_N16 },
+    [0xC4] = { IN_CALL, AM_N16, RT_NONE, RT_NONE, CT_NZ },
     [0xC5] = { IN_PUSH, AM_R, RT_BC },
+    [0xC7] = { IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x00 },
+    [0xC8] = { IN_RET, AM_IMP, RT_NONE, RT_NONE, CT_Z },
+    [0xC9] = { IN_RET },
+    [0xCA] = { IN_JP, AM_N16, RT_NONE, RT_NONE, CT_Z },
+    [0xCC] = { IN_CALL, AM_N16, RT_NONE, RT_NONE, CT_Z },
+    [0xCD] = { IN_CALL, AM_N16},
+    [0xCF] = { IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x08 },
 
     // 0xDX
+    [0xD0] = { IN_RET, AM_IMP, RT_NONE, RT_NONE, CT_NC},
     [0xD1] = { IN_POP, AM_R, RT_DE },
+    [0xD2] = { IN_JP, AM_N16, RT_NONE, RT_NONE, CT_NC },
+    [0xD4] = { IN_CALL, AM_N16, RT_NONE, RT_NONE, CT_NC },
     [0xD5] = { IN_PUSH, AM_R, RT_DE },
+    [0xD7] = { IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x10 },
+    [0xD8] = { IN_RET, AM_IMP, RT_NONE, RT_NONE, CT_C},
+    [0xD9] = { IN_RETI },
+    [0xDA] = { IN_JP, AM_N16, RT_NONE, RT_NONE, CT_C},
+    [0xDC] = { IN_CALL, AM_N16, RT_NONE, RT_NONE, CT_C},
+    [0xDF] = { IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x18 },
 
     // 0xEX
     [0xE0] = { IN_LDH, AM_A8_R, RT_NONE, RT_A },
     [0xE1] = { IN_POP, AM_R, RT_HL },
     [0xE2] = { IN_LD, AM_MR_R, RT_C, RT_A },
     [0xE5] = { IN_PUSH, AM_R, RT_HL },
+    [0xE7] = { IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x20 },
+    [0xE9] = { IN_JP, AM_R, RT_HL },
     [0xEA] = { IN_LD, AM_A16_R, RT_NONE, RT_A },
+    [0xEF] = { IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x28 },
 
     //0xFX
     [0xF0] = { IN_LDH, AM_R_A8, RT_A},
@@ -140,7 +167,9 @@ instruction instructions[0x100] = {
     [0xF2] = { IN_LD, AM_R_MR, RT_A, RT_C },
     [0xF3] = { IN_DI },
     [0xF5] = { IN_PUSH, AM_R, RT_AF },
+    [0xF7] = { IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x30 },
     [0xFA] = { IN_LD, AM_R_A16, RT_A },
+    [0xFF] = { IN_RST, AM_IMP, RT_NONE, RT_NONE, CT_NONE, 0x38 },
 };
 
 char *inst_lookup[] = {
