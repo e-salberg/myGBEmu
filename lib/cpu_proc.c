@@ -170,6 +170,7 @@ static void proc_ld(cpu_context *ctx)
         cpu_set_flags(ctx, 0, 0, h, c);
         cpu_set_reg(ctx->current_instruction->reg_1, 
             cpu_read_reg(ctx->current_instruction->reg_2) + (int8_t)ctx->fetched_data);
+        return;
     }
 
     cpu_set_reg(ctx->current_instruction->reg_1, ctx->fetched_data);
@@ -180,7 +181,7 @@ static void proc_ldh(cpu_context *ctx)
     // LDH commands always use register A, either in pos 1 or pos 2
     if (ctx->current_instruction->reg_1 == RT_A)
     {
-        // cpu_set_reg(ctx->current_instruction->reg_1, read_address_bus(0xFF00 | ctx->fetched_data));
+        //cpu_set_reg(ctx->current_instruction->reg_1, read_address_bus(0xFF00 | ctx->fetched_data));
         cpu_set_reg(ctx->current_instruction->reg_1, read_address_bus(ctx->fetched_data));
     }
     else 
@@ -229,6 +230,143 @@ static void proc_push(cpu_context *ctx)
     emu_cycles(1);
 }
 
+static void proc_add(cpu_context *ctx)
+{
+    uint32_t val = cpu_read_reg(ctx->current_instruction->reg_1) + ctx->fetched_data;
+
+    bool is_16bit = is_16_bit(ctx->current_instruction->reg_1);
+
+    if (is_16bit)
+    {
+        emu_cycles(1);
+    }
+
+    // special case Add to stack point (relative) opcode = 0xE8: ADD SP, e8
+    if (ctx->current_instruction->reg_1 == RT_SP)
+    {
+        val = cpu_read_reg(ctx->current_instruction->reg_1) + (int8_t)ctx->fetched_data;
+    }
+
+
+    int z =(val & 0xFF) == 0;
+    int h = (cpu_read_reg(ctx->current_instruction->reg_1) & 0xF) + (ctx->fetched_data & 0xF) >= 0x10;
+    int c = (int)(cpu_read_reg(ctx->current_instruction->reg_1) & 0xFF) + (int)(ctx->fetched_data & 0xFF) >= 0x100;
+
+    if (is_16bit)
+    {
+        z = -1;
+        h = (cpu_read_reg(ctx->current_instruction->reg_1) & 0xFFF) + (ctx->fetched_data & 0xFFF) >= 0x1000;
+        uint32_t n = ((uint32_t)cpu_read_reg(ctx->current_instruction->reg_1)) + ((uint32_t)ctx->fetched_data);
+        c = n >= 0x10000;
+    }
+
+    if (ctx->current_instruction->reg_1 == RT_SP)
+    {
+        z = 0;
+        int h = (cpu_read_reg(ctx->current_instruction->reg_1) & 0xF) + (ctx->fetched_data & 0xF) >= 0x10;
+        int c = (int)(cpu_read_reg(ctx->current_instruction->reg_1) & 0xFF) + (int)(ctx->fetched_data & 0xFF) >= 0x100;
+    }
+    cpu_set_reg(ctx->current_instruction->reg_1, val & 0xFFFF);
+    cpu_set_flags(ctx, z, 0, h, c);
+}
+
+static void proc_adc(cpu_context *ctx)
+{
+    uint16_t u = ctx->fetched_data;
+    uint16_t a = ctx->regs.a;
+    uint16_t c = CPU_FLAG_C;
+
+    ctx->regs.a = (a + u + c) & 0xFF;
+    cpu_set_flags(ctx, ctx->regs.a == 0, 0, (a & 0xF) + (u & 0xF) + c > 0xF, a + u + c > 0xFF);
+}
+
+static void proc_sub(cpu_context *ctx)
+{
+    uint16_t val = cpu_read_reg(ctx->current_instruction->reg_1) - ctx->fetched_data;
+    int z = val == 0;
+    int h = ((int)cpu_read_reg(ctx->current_instruction->reg_1) & 0xF) - ((int)ctx->fetched_data & 0xF) < 0;
+    int c = ((int)cpu_read_reg(ctx->current_instruction->reg_1)) - ((int)ctx->fetched_data) < 0;
+    cpu_set_reg(ctx->current_instruction->reg_1, val);
+    cpu_set_flags(ctx, z, 1, h, c);
+}
+
+static void proc_sbc(cpu_context *ctx)
+{
+    uint8_t val = ctx->fetched_data + CPU_FLAG_C;
+    int z = cpu_read_reg(ctx->current_instruction->reg_1) - val == 0;
+    int h = ((int)cpu_read_reg(ctx->current_instruction->reg_1) & 0xF) - ((int)ctx->fetched_data & 0xF) - ((int)CPU_FLAG_C) < 0;
+    int c = ((int)cpu_read_reg(ctx->current_instruction->reg_1)) - ((int)ctx->fetched_data) - ((int)CPU_FLAG_C) < 0;
+    cpu_set_reg(ctx->current_instruction->reg_1, cpu_read_reg(ctx->current_instruction->reg_1) - val);
+    cpu_set_flags(ctx, z, 1, h, c);
+}
+
+
+static void proc_inc(cpu_context *ctx)
+{
+    uint16_t val = cpu_read_reg(ctx->current_instruction->reg_1) + 1;
+    
+    if (is_16_bit(ctx->current_instruction->reg_1))
+    {
+        emu_cycles(1);
+    }
+
+    // HL is the only reg that has an instruction with AM_MR
+    if (ctx->current_instruction->reg_1 == RT_HL && ctx->current_instruction->mode == AM_MR)
+    {
+        val = read_address_bus(cpu_read_reg(RT_HL)) + 1;
+        val &= 0xFF; // is this needed?
+        write_address_bus(cpu_read_reg(RT_HL), val);
+    }
+    else
+    {
+        // why do we need to reread the value after setting it?
+        cpu_set_reg(ctx->current_instruction->reg_1, val);
+        val = cpu_read_reg(ctx->current_instruction->reg_1);
+    }
+
+    // INC op codes that end in x3 do not set the flags
+    if ((ctx->current_opcode & 0x03) == 0x03)
+    {
+        return;
+    }
+
+    // for h why not CHECK_BIT(val, 5)?
+    // why (val & 0x0F) == 0 instead of == 0x0F?
+    cpu_set_flags(ctx, val == 0, 0, (val & 0x0F) == 0, -1);
+}
+
+static void proc_dec(cpu_context *ctx)
+{
+    uint16_t val = cpu_read_reg(ctx->current_instruction->reg_1) - 1;
+    
+    if (is_16_bit(ctx->current_instruction->reg_1))
+    {
+        emu_cycles(1);
+    }
+
+    // HL is the only reg that has an instruction with AM_MR
+    if (ctx->current_instruction->reg_1 == RT_HL && ctx->current_instruction->mode == AM_MR)
+    {
+        val = read_address_bus(cpu_read_reg(RT_HL)) - 1;
+        write_address_bus(cpu_read_reg(RT_HL), val);
+    }
+    else
+    {
+        // why do we need to reread the value after setting it?
+        cpu_set_reg(ctx->current_instruction->reg_1, val);
+        val = cpu_read_reg(ctx->current_instruction->reg_1);
+    }
+
+    // INC op codes that end in x3 do not set the flags
+    if ((ctx->current_opcode & 0x0B) == 0x0B)
+    {
+        return;
+    }
+
+    // for h why not CHECK_BIT(val, 5)?
+    cpu_set_flags(ctx, val == 0, 1, (val & 0x0F) == 0x0F, -1);
+}
+
 static IN_PROC processors[] = {
     [IN_NONE] = proc_none,
     [IN_NOP] = proc_nop,
@@ -243,7 +381,13 @@ static IN_PROC processors[] = {
     [IN_DI] = proc_di,
     [IN_XOR] = proc_xor,
     [IN_POP] = proc_pop,
-    [IN_PUSH] = proc_push
+    [IN_PUSH] = proc_push,
+    [IN_ADD] = proc_add,
+    [IN_ADC] = proc_adc,
+    [IN_INC] = proc_inc,
+    [IN_DEC] = proc_dec,
+    [IN_SUB] = proc_sub,
+    [IN_SBC] = proc_sbc,
 };
 
 IN_PROC inst_get_processor(instruction_type type)

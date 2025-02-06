@@ -67,8 +67,7 @@ uint8_t read_address_bus(uint16_t address)
     else if (address < 0xFFFF)
     {
         // HRAM (High RAM)
-        printf("UNSUPPORTED bus read(%04X)\n", address);
-        NO_IMPL
+        return read_hram(address);
     }
     else if (address == 0xFFFF)
     {

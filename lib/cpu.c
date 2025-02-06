@@ -44,9 +44,14 @@ static void fetch_data()
             ctx.regs.pc++;
             return;
         case AM_R_N16:
-        case AM_N16:
-            ctx.fetched_data = read16_address_bus(ctx.regs.pc);
-            emu_cycles(2);
+        case AM_N16: 
+            uint16_t lo = read_address_bus(ctx.regs.pc);
+            emu_cycles(1);
+
+            uint16_t hi = read_address_bus(ctx.regs.pc + 1);
+            emu_cycles(1);
+
+            ctx.fetched_data = lo | (hi << 8);
             ctx.regs.pc += 2;
             return;
         case AM_MR_R:
