@@ -8,7 +8,7 @@ void stack_push(uint8_t data)
     write_address_bus(--cpu_get_regs()->sp, data);
 }
 
-void stack_push16(uint8_t data)
+void stack_push16(uint16_t data)
 {
     stack_push((data >> 8) & 0xFF);
     stack_push(data & 0xFF);
