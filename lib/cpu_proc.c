@@ -5,6 +5,26 @@
 
 // processes CPU instructions...
 
+reg_type rt_lookup[] = {
+    RT_B,
+    RT_C,
+    RT_D,
+    RT_E,
+    RT_H,
+    RT_L,
+    RT_HL,
+    RT_A
+};
+
+reg_type decode_reg(uint8_t reg)
+{
+    if (reg > 0b111)
+    {
+        return RT_NONE;
+    }
+    return rt_lookup[reg];
+}
+
 static bool check_condition(cpu_context *ctx)
 {
     bool z = CPU_FLAG_Z;
@@ -191,12 +211,6 @@ static void proc_ldh(cpu_context *ctx)
     emu_cycles(1);
 }
 
-static void proc_xor(cpu_context *ctx)
-{
-    ctx->regs.a ^= ctx->fetched_data & 0xFF;
-    cpu_set_flags(ctx, ctx->regs.a == 0, 0, 0, 0);
-}
-
 static void proc_pop(cpu_context *ctx)
 {
     uint16_t lo = stack_pop();
@@ -367,6 +381,145 @@ static void proc_dec(cpu_context *ctx)
     cpu_set_flags(ctx, val == 0, 1, (val & 0x0F) == 0x0F, -1);
 }
 
+static void proc_and(cpu_context *ctx)
+{
+    ctx->regs.a &= ctx->fetched_data;
+    cpu_set_flags(ctx, ctx->regs.a == 0, 0, 1, 0);
+}
+
+static void proc_or(cpu_context *ctx)
+{
+    ctx->regs.a |= ctx->fetched_data & 0xFF;
+    cpu_set_flags(ctx, ctx->regs.a == 0, 0, 0, 0);
+}
+
+static void proc_xor(cpu_context *ctx)
+{
+    ctx->regs.a ^= ctx->fetched_data & 0xFF;
+    cpu_set_flags(ctx, ctx->regs.a == 0, 0, 0, 0);
+}
+
+// this is basically the sam eas SUB r but does not update register A
+static void proc_cp(cpu_context *ctx)
+{
+    int val = (int)ctx->regs.a - ctx->fetched_data;
+    cpu_set_flags(ctx, val == 0, 1, ((int)ctx->regs.a & 0x0F) - ((int)ctx->fetched_data & 0x0F) < 0, val < 0);
+}
+
+static void proc_cb(cpu_context *ctx)
+{
+    uint8_t op = ctx->fetched_data;
+    reg_type reg = decode_reg(op & 0b111);
+    uint8_t bit = (op >> 3) & 0b111;
+    uint8_t bit_op = (op >> 6) & 0b111;
+    uint8_t reg_val = cpu_read_reg8(reg);
+
+    emu_cycles(1);
+
+    if (reg == RT_HL)
+    {
+        emu_cycles(2);
+    }
+
+    switch(bit_op) 
+    {
+        case 1: 
+            // BIT
+            cpu_set_flags(ctx, !(reg_val & (1 << bit)), 0, 1, -1);
+            return;
+        case 2: 
+            //RST
+            reg_val &= ~(1 << bit);
+            cpu_set_reg8(reg, reg_val);
+            return;
+        case 3: 
+            //SET
+            reg_val |= ~(1 << bit);
+            cpu_set_reg8(reg, reg_val);
+            return;
+    }
+
+    bool flagC = CPU_FLAG_C;
+    switch(bit) 
+    {
+        case 0: {
+            //RLC - Rotate Left old bit 7 to carry flag
+            bool setC = false;
+            uint8_t result = (reg_val << 1) & 0xFF;
+
+            // if bit 7 is not set on reg_val
+            if ((reg_val & (1 << 7)) != 0)
+            {
+                result |= 1;
+                setC = true;
+            }
+            cpu_set_reg8(reg, result);
+            cpu_set_flags(ctx, result == 0, 0, 0, setC);
+        } return;
+
+        case 1: {
+            //RRC - Rotate Right old bit 0 to carry flag
+            uint8_t old = reg_val;
+            reg_val >>= 1;
+            reg_val |= (old << 7);
+            cpu_set_reg8(reg, reg_val);
+            cpu_set_flags(ctx, !reg_val, 0, 0, old & 1);
+
+        } return;
+
+        case 2: {
+            //RL - Rotate Left
+            uint8_t old = reg_val;
+            reg_val <<= 1;
+            reg_val |= flagC;
+            cpu_set_reg8(reg, reg_val);
+            // why !! is needed? old & 0x80 can be any value if set and !! makes it 1?
+            cpu_set_flags(ctx, !reg_val, 0, 0, !!(old & 0x80));
+        } return;
+
+        case 3: {
+            //RR - Rotate Right
+            uint8_t old = reg_val;
+            reg_val >>= 1;
+            reg_val |= (flagC << 7);
+            cpu_set_reg8(reg, reg_val);
+            cpu_set_flags(ctx, !reg_val, 0, 0, old & 1);
+        } return;
+
+        case 4: {
+            //SLA - Shift Left And carry
+            uint8_t old = reg_val;
+            reg_val <<= 1;
+            cpu_set_reg8(reg, reg_val);
+            cpu_set_flags(ctx, !reg_val, 0, 0, !!(old & 0x80));
+        } return;
+
+        case 5: {
+            //SRA - Shift Right And carry
+            uint8_t u = (int8_t)reg_val >> 1;
+            cpu_set_reg8(reg, u);
+            cpu_set_flags(ctx, !u, 0, 0, reg_val & 1);
+        } return;
+
+        case 6: {
+            //SWAP - swap high and low nibbles
+            reg_val = ((reg_val & 0xF0) >> 4) | ((reg_val & 0xF) << 4);
+            cpu_set_reg8(reg, reg_val);
+            cpu_set_flags(ctx, reg_val == 0, 0, 0, 0);
+        } return;
+
+        case 7: {
+            //SRL
+            uint8_t u = reg_val >> 1;
+            cpu_set_reg8(reg, u);
+            cpu_set_flags(ctx, !u, 0, 0, reg_val & 1);
+        } return;
+    }
+
+    fprintf(stderr, "ERROR: INVALID CB: %02X", op);
+    NO_IMPL
+}
+
 static IN_PROC processors[] = {
     [IN_NONE] = proc_none,
     [IN_NOP] = proc_nop,
@@ -379,7 +532,6 @@ static IN_PROC processors[] = {
     [IN_RET] = proc_ret,
     [IN_RETI] = proc_reti,
     [IN_DI] = proc_di,
-    [IN_XOR] = proc_xor,
     [IN_POP] = proc_pop,
     [IN_PUSH] = proc_push,
     [IN_ADD] = proc_add,
@@ -388,6 +540,11 @@ static IN_PROC processors[] = {
     [IN_DEC] = proc_dec,
     [IN_SUB] = proc_sub,
     [IN_SBC] = proc_sbc,
+    [IN_AND] = proc_and,
+    [IN_OR] = proc_or,
+    [IN_XOR] = proc_xor,
+    [IN_CP] = proc_cp,
+    [IN_CB] = proc_cb,
 };
 
 IN_PROC inst_get_processor(instruction_type type)
